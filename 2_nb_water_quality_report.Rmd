@@ -1,0 +1,308 @@
+---
+output: 
+  word_document:
+    reference_docx: cmar_report_template.docx
+    toc: true
+    toc_depth: 3
+params: 
+  region: region 
+  doc.hist: doc.hist
+editor_options: 
+  chunk_output_type: console
+bibliography: water_quality_references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, dpi = 600)
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+library(canadianmaps)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(ggsflabel)
+library(ggspatial)
+library(googlesheets4)
+library(glue)
+library(here)
+library(knitr)
+library(lubridate)
+library(readr)
+library(rnaturalearth)
+library(sf)
+library(sensorstrings)
+library(stringr)
+library(tidyr)
+
+source(here("functions/subchunkify.R"))
+source(here("functions/import_map_params.R"))
+source(here("functions/report_helper_foos.R"))
+source(here("functions/report_params.R"))
+
+region <- params$region
+```
+
+```{r, import-strings-data}
+
+# read all rds files for county and rbind together
+dat <- suppressMessages(
+  ss_import_data(
+    input_path = "R:/data_branches/nb_water_quality/processed_data/assembled_data", 
+    county = tolower(region)
+  )
+)
+
+# if(!("lease" %in% colnames(dat_raw))) {
+#   dat_raw <- mutate(dat_raw, lease = NA_character_)
+# }
+
+# unique waterbodies
+waterbodies <- sort(unique(dat$waterbody))
+
+fig_caption <- " water quality data."
+table_caption <- "Deployment details for"
+
+i = 1 # counter for table
+k = 1 # counter for figure number
+text_size <- 3.5
+crs <- 4326
+
+```
+
+
+\newpage
+# Introduction
+
+The New Brunswick Department of Agriculture, Aquaculture, and Fisheries (DAAF) measures [essential ocean variables](https://goosocean.org/what-we-do/framework/essential-ocean-variables/) around the coast of New Brunswick through their Coastal Monitoring Program. This Program is a collaboration between DAAF, the Centre for Marine Applied Research (CMAR), Fisheries and Oceans Canada Gulf Region, and several third-party field contractors. 
+
+This document presents deployment details and summary figures of Water Quality data collected in the **`r region`** region of the province (Figure `r k` and Figure `r k+1`). The data are available for download from the New Brunswick [Open Data Portal](https://gnb.socrata.com/browse?sortBy=alpha&page=1&pageSize=20). 
+
+This document should be considered as a guide only, since data collection and retrieval are ongoing. The information may be revised pending ongoing data collection and analyses. 
+
+```{r, NB-map, message=FALSE, warning=FALSE, error=FALSE, fig.height=5.5, fig.width=8}
+
+# for map inset
+dummy_coords <- import_map_params(tolower(region))
+x_min <- min(dummy_coords$longitude)
+x_max <- max(dummy_coords$longitude)
+y_min <- min(dummy_coords$latitude)
+y_max <- max(dummy_coords$latitude)
+ 
+nb_bbox <- c(xmin = -68.25, xmax = -63, ymin = 44.39, ymax = 48.45)
+
+nb <- filter(PROV, PT == "NB"| PT == "PE"| PT == "NS") %>%
+  st_crop(nb_bbox) %>% 
+  st_transform(crs = 4326)
+
+can_us <- ne_countries(
+  continent = "North America", returnclass = "sf", scale = "large"
+) %>% 
+  st_crop(nb_bbox) %>% 
+  st_transform(crs = st_crs(nb))
+
+# box for inset map
+region_box <- data.frame(
+  lat = c(y_min, y_min, y_max, y_max),
+  long = c(x_min, x_max, x_max, x_min)
+) %>% 
+  st_as_sf(coords = c("long", "lat"), crs = st_crs(can_us)) %>%
+  summarise(geometry = st_combine(geometry)) %>%
+  st_cast("POLYGON") 
+
+ggplot() +
+  geom_sf(data = can_us, linewidth = 0.5, col = "grey30") +
+  geom_sf(data = region_box, col = "red", fill = NA, linewidth = 0.75) +
+  theme_map() +
+  coord_sf(expand = FALSE) +
+  theme(
+    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1),
+    text = element_text(size = 12),
+    axis.title = element_blank(),
+    legend.position = "none"
+  )
+```
+
+**Figure `r k`:** New Brunswick `r region` sampling region (red box).
+
+```{r,  message=FALSE, error=FALSE}
+k = k + 1
+```
+
+
+```{r, county-map, message=FALSE, error=FALSE, warning=FALSE, fig.height=6, fig.width=8}
+
+# extract unique station locations and convert to sf object
+stations_sf <- dat %>%
+  sensorstrings::ss_write_report_table(keep_waterbody = TRUE) %>%
+  select(Waterbody, Station, Latitude, Longitude) %>%
+  distinct(Station, .keep_all = TRUE) %>%
+  st_as_sf(
+    coords = c("Longitude", "Latitude"), remove = FALSE,
+    crs = crs, agr = "constant"
+  )
+
+if (tolower(region) == "north") {
+  # used nb here so the NS border will be drawn
+  region_sf <- nb %>% 
+    st_crop(dummy_coords) 
+  
+  point_size <- 4
+}
+if (tolower(region) == "south") {
+  region_sf <- can_us %>% 
+    filter(name_long == "United States") %>% 
+    bind_rows(nb) %>% 
+    st_crop(dummy_coords) 
+  
+  point_size <- 3
+}
+
+# stations_sf <- stations %>% 
+#   st_crop(dummy_coords) 
+
+ggplot() +
+  geom_sf(data = region_sf, linewidth = 0.5, col = "grey30") +
+  geom_sf(data = stations_sf, size = point_size, col = "#003c4c") +
+  ggsflabel::geom_sf_text_repel(
+    data = stations_sf, aes(label = Station),
+    seed = 12, force = 20,
+    size = 4.5, color = "black", bg.color = "white"
+  ) +
+  coord_sf(expand = FALSE) +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(
+    location = "tl", which_north = "true",
+    height = unit(1, "cm"),
+    width = unit(1, "cm")
+  ) +
+  theme_map() +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+```	
+<br>
+
+**Figure `r k`:** Sampling stations in the New Brunswick `r region` sampling region.
+
+```{r}
+k = k+1
+```
+
+\newpage
+## Data Collection 
+
+DAAF collects temperature, pH, dissolved oxygen, and salinity data following [CMAR Coastal Monitoring Program](https://cmar.ca/coastal-monitoring-program/) procedures. Stationary moorings called "sensor strings" are deployed at a station for several months to a year. A typical sensor string consists of a rope attached to the seafloor by an anchor and suspended by a sub-surface buoy, with sensors attached at various depths (Figure `r  k`). **Alternatively, sensors may be attached to floating docks, surface buoys, equipment, or fixed structures (Table `r i`).**  Data are logged every 10 minutes to 1 hour, depending on the sensor and settings. Sensors must be retrieved to offload the data. The retrieval method depends on the sensor configuration, and may include triggering an acoustic release, directly removing sensors from surface moorings, or employing divers or grappling methods (Table `r i`). 
+
+```{r, echo=FALSE, fig.width=8}
+knitr::include_graphics("sensor_string.png")
+```
+
+**Figure `r k`:** Example sensor string configuration (not to scale).
+
+\newpage
+
+**Table `r i`:** Description of sensor string configurations.
+
+| **Configuration** | **Description** |
+|---|---|
+|     Sub-surface buoy    |     Attached to sub-surface buoy. Typically has an acoustic release, but sometimes retrieved by diver or drag line. Does not float with the tide.    |
+|     Surface buoy    |     Attached to a surface buoy. Floats with the tide.    |
+|     Attached to gear    |     Typically attached to aquaculture gear[^1], but may be attached to another structure. Floats with the tide.  |
+|     Attached to fixed structure    |     Typically attached to a wharf, but may be attached to a bridge or pole. Does not float with the tide.  |
+|     Floating dock    |     Attached to a floating dock. Floats with the tide.    |
+|     Unknown    |     Configuration not indicated in historical deployment log.    |
+
+[^1]: Some aquaculture gear may be sunk to the bottom during winter or extreme weather conditions like hurricanes, and so the sensor depth may change during the deployment. This change would likely be flagged by quality control processes, but it is recommended that users critically review data from these deployments.
+
+Interest-holder needs and characteristics of the station dictate the string design, including anchor weight, number and type of sensors, and configuration (Table `r i`). Sensor strings are generally deployed 200 m to **5000 m** from shore. Some of the sensors used to measure these variables also measure sensor depth. This data has been processed and published with the Water Quality datasets, and is included in the figures below.
+
+After sensors have been retrieved, the offloaded data is sent to CMAR to be compiled and sent to the New Brunswick Open Data Portal for publication. CMAR also generates summary reports of the data (e.g., this document), and hosts links to the published datasets and reports on their [Data Access Map](https://cmar.ca/coastal-monitoring-program/).
+
+## Quality Control
+
+Anything to add here?
+
+\newpage
+# `r region` Water Quality Data
+
+Water Quality data is presented by waterbody. For each waterbody, there is a table of deployment details followed by figures showing the data at each station. Note the differences in scales between figures (x-axis, y-axis, and colour).
+
+```{r, report-body, fig.width = 8.5, results = 'hide',  results ='asis', message=FALSE}
+
+for(i in seq_along(waterbodies)){
+
+  waterbody_i <- waterbodies[i]
+  dat_i <- dat %>% filter(waterbody == waterbody_i)
+
+  stations <- sort(unique(dat_i$station))
+  
+  cat('\n##', waterbody_i, '\n')
+
+  cat('\n')
+
+  # waterbody table
+  table_i <- ss_write_report_table(dat_i, keep_waterbody = FALSE)
+
+  i_table <- i + 1
+  print(
+    kable(table_i, align = "c",
+          caption = glue("**Table {i_table}:** {table_caption} {waterbody_i}.")
+    )
+  )
+  
+  cat('\n')
+  
+  # plot for each station
+  for(j in seq_along(stations)){
+
+    k = k + 1
+    station_j <- stations[j] # station of interest
+
+    # subset data to station of interest
+    dat_j <- dat_i %>% 
+      filter(station == station_j) %>%
+      ss_convert_depth_to_ordered_factor()
+    
+    # height of figure j
+    h <- calc_fig_height(dat_j, h1 = 2.4)
+
+    # figure    
+    p <- ss_plot_variables(
+      dat_j,
+      yaxis_newline = FALSE
+    )
+    
+    cat('\n###', station_j, '\n')
+     
+    subchunkify(p, fig_height = h, fig_width = 8.5)
+    
+    # figure caption    
+    fig_caption_j <-  glue("**Figure {k}:** {station_j}{fig_caption}")
+    
+    cat(fig_caption_j, '\n')
+    
+    cat('\n')
+  }
+}
+
+```
+
+\newpage
+#	Data Acknowledgement 
+
+CMAR and DAAF aim to prioritize data collection and processing efforts that best serve coastal interest holders. If you use this Coastal Monitoring Program Water Quality data in a project or for decision making, please complete our [anonymous questionnaire](https://docs.google.com/forms/d/1RmHN1vDaM0dXqKFKy8V-traIoubdw1pqMDKVtPmWDHc/edit) with your feedback. Please cite the report and/or datasets used.
+
+# Document History
+
+```{r}
+i <- i_table +1
+
+params$doc.hist %>%
+  select(-c(Region, Notes)) %>%
+  kable(
+    align = "ccl", caption = glue("Table {i}: Document history.")
+  )
+```
+<br>
+
+
