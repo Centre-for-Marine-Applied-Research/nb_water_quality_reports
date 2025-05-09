@@ -4,18 +4,20 @@ format:
     template-partials: 
       - format/typst-show.typ
       - format/typst-template.typ
-    fig-format: png
+    fig-format: svg
 echo: false
 dpi: 600
 citeproc: true
 bibliography: format/refs.bib
 csl: format/apa.csl
 params: 
-  region: "South"
+  region: region
+  doc_version: doc_version
+  doc_date: doc_date
+  doc_notes: doc_notes
 editor_options: 
   chunk_output_type: console
 ---
-
 
 ```{r}
 #| include: false
@@ -104,22 +106,28 @@ region <- params$region
 #set par(leading: 0.75em)
 ```
 
-
-
 ```{r}
 #| label: import-data
 
 # read all rds files for county and rbind together
-dat <- suppressMessages(
+dat_raw <- suppressMessages(
   ss_import_data(
     input_path = "R:/data_branches/nb_water_quality/processed_data/assembled_data", 
     county = tolower(region)
   )
 )
 
-# if(!("lease" %in% colnames(dat_raw))) {
-#   dat_raw <- mutate(dat_raw, lease = NA_character_)
-# }
+dat <- dat_raw %>%
+  qc_pivot_longer(qc_tests = c("grossrange", "depth_crosscheck")) %>%
+  filter(grossrange_flag_value != 4) %>%
+  qc_pivot_wider() %>%
+  select(
+    region, waterbody, station, lease, latitude, longitude,
+    deployment_range, string_configuration,
+    sensor_type, sensor_serial_number, sensor_depth_at_low_tide_m, timestamp_utc,
+    any_of(vars)
+    #contains("flag")
+  )
 
 # unique waterbodies
 waterbodies <- sort(unique(dat$waterbody))
@@ -234,9 +242,6 @@ if (tolower(region) == "south") {
   point_size <- 3
 }
 
-# stations_sf <- stations %>% 
-#   st_crop(dummy_coords) 
-
 ggplot() +
   geom_sf(data = region_sf, linewidth = 0.5, col = "grey30") +
   geom_sf(data = stations_sf, size = point_size, col = "#003c4c") +
@@ -291,15 +296,17 @@ DAAF collects temperature, pH, dissolved oxygen, and salinity data following [CM
 #v(11pt)
 ```
 
-[^1]: Some aquaculture gear may be sunk to the bottom during winter or extreme weather conditions like hurricanes, and so the sensor depth may change during the deployment. This change would likely be flagged by quality control processes, but it is recommended that users critically review data from these deployments.
-
-Interest-holder needs and characteristics of the station dictate the string design, including anchor weight, number and type of sensors, and configuration (Table `r i`). Sensor strings are generally deployed 200 m to **5000 m** from shore. Some of the sensors used to measure these variables also measure sensor depth. This data has been processed and published with the Water Quality datasets, and is included in the figures below.
+Interest-holder needs and characteristics of the station dictate the string design, including anchor weight, number and type of sensors, and configuration (Table `r i`). Sensor strings are generally deployed 200 m to 5000 m from shore. Some of the sensors used to measure these variables also measure sensor depth. This data has been processed and published with the Water Quality datasets, and is included in the figures below.
 
 After sensors have been retrieved, the offloaded data is sent to CMAR to be compiled and sent to the New Brunswick Open Data Portal for publication. CMAR also generates summary reports of the data (e.g., this document), and hosts links to the published datasets and reports on their [Data Access Map](https://cmar.ca/coastal-monitoring-program/).
 
 ## Quality Control
 
-Anything to add here?
+An automated Gross Range test was applied to the data to identify outlying and unexpected values.  For consistency with the CMAR Water Quality data, each data point was assigned a flag of “Pass”, “Fail”, or **“Suspect/Of Interest”** [@RN25922]. 
+
+Observations flagged as "Pass" were within the measurement range listed in the sensor specifications sheet. These observations are shown in the figures below. Observations flagged as "Fail" were outside of the measurement range and are not shown in the figures.
+
+These automated flags were reviewed by human experts, and modified where necessary.
 
 \newpage
 # New Brunwick `r region` Water Quality Data
@@ -386,15 +393,22 @@ CMAR and DAAF aim to prioritize data collection and processing efforts that best
 
 # Document History
 
-```{r}
-i <- i_table +1
+```{=typst}
+#set align(center)
+```
 
-# params$doc.hist %>%
-#   select(-c(Region, Notes)) %>%
-#   kable(
-#     align = "ccl", caption = glue("Table {i}: Document history.")
-#   )
+**Table `r i_table +1`**: Document history.
+```{r}
+data.frame(
+  Version = params$doc_version,
+  Date = params$doc_date,
+  Amendments = params$doc_notes
+) %>% 
+  kable(align = "ccl")
 ```
 <br>
 
-
+```{=typst}
+#set align(left)
+```
+# References
