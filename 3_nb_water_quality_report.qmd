@@ -4,9 +4,9 @@ format:
     template-partials: 
       - format/typst-show.typ
       - format/typst-template.typ
-    fig-format: svg
+    fig-format: png
 echo: false
-dpi: 600
+latex_engine: xelatex
 citeproc: true
 bibliography: format/refs.bib
 csl: format/apa.csl
@@ -59,11 +59,16 @@ region <- params$region
 #page(
   margin: (x: 0in, y: 1.75in),
   numbering: none,
-  header: pad(top: 0pt, left: 55pt, image("images/cmar_logo.png", height: 1in)),
+  header: align(
+      grid(
+        columns: (50%, 50%),
+        align(center, image("images/cmar_logo.png", height: 1in)),
+        align(center, image("images/nb_logo.png", height: 1in)))
+      ),
   footer: none
   )[
   
-    #figure(image("images/water_quality_title_image.jpg"))
+    #figure(image("images/nb_water_quality_title_image.jpg"))
 
     #text(font: "Ebrima", 
           weight: "bold", 
@@ -167,9 +172,10 @@ x_max <- max(dummy_coords$longitude)
 y_min <- min(dummy_coords$latitude)
 y_max <- max(dummy_coords$latitude)
  
-nb_bbox <- c(xmin = -68.25, xmax = -63, ymin = 44.39, ymax = 48.45)
+nb_bbox <- c(xmin = -68.25, xmax = -63, ymin = 44.39, ymax = 49)
 
-nb <- filter(PROV, PT == "NB"| PT == "PE"| PT == "NS") %>%
+sf_use_s2(FALSE) # need this to turn off spherical geometry to include QC
+nb <- filter(PROV, PT == "NB"| PT == "PE"| PT == "NS"| PT == "QC") %>%
   st_crop(nb_bbox) %>% 
   st_transform(crs = 4326)
 
@@ -214,7 +220,8 @@ k = k + 1
 #| warning: false
 #| error: false
 #| fig.width: 8
-#| fig.height: 3.75
+#| fig.height: 5
+#| dpi: 400
 
 # extract unique station locations and convert to sf object
 stations_sf <- dat %>%
@@ -231,7 +238,7 @@ if (tolower(region) == "north") {
   region_sf <- nb %>% 
     st_crop(dummy_coords) 
   
-  point_size <- 4
+  point_size <- 3
 }
 if (tolower(region) == "south") {
   region_sf <- can_us %>% 
@@ -271,7 +278,7 @@ k = k+1
 \newpage
 ## Data Collection 
 
-DAAF collects temperature, pH, dissolved oxygen, and salinity data following [CMAR Coastal Monitoring Program](https://cmar.ca/coastal-monitoring-program/) procedures. Stationary moorings called "sensor strings" are deployed at a station for several months to a year. A typical sensor string consists of a rope attached to the seafloor by an anchor and suspended by a sub-surface buoy, with sensors attached at various depths (Figure `r  k`). **Alternatively, sensors may be attached to floating docks, surface buoys, equipment, or fixed structures (Table `r i`).**  Data are logged every 10 minutes to 1 hour, depending on the sensor and settings. Sensors must be retrieved to offload the data. The retrieval method depends on the sensor configuration, and may include triggering an acoustic release, directly removing sensors from surface moorings, or employing divers or grappling methods (Table `r i`). 
+DAAF collects temperature, pH, dissolved oxygen, and salinity data following [CMAR Coastal Monitoring Program](https://cmar.ca/coastal-monitoring-program/) procedures. Stationary moorings called "sensor strings" are deployed at a station for several months to a year. A typical sensor string consists of a rope attached to the seafloor by an anchor and suspended by a sub-surface buoy, with sensors attached at various depths (Figure `r  k`). Data are logged every 10 minutes to 1 hour, depending on the sensor and settings. Sensors must be retrieved to offload the data. The retrieval method depends on the sensor configuration, and may include triggering an acoustic release, directly removing sensors from surface moorings, or employing divers or grappling methods (Table `r i`). 
 
 ```{=typst} 
 #figure(image("images/sensor_string.png"))
@@ -280,29 +287,11 @@ DAAF collects temperature, pH, dissolved oxygen, and salinity data following [CM
 
 \newpage
 
-**Table `r i`:** Description of sensor string configurations.
-```{=typst}
-
-#table(columns: 2, align: left,
-      table.header[Configuration][Description],
-      [Sub-surface buoy], [Attached to sub-surface buoy. Typically has an acoustic release, but sometimes retrieved by diver or drag line. Does not float with the tide.],
-      [Surface buoy], [Attached to a surface buoy. Floats with the tide.],
-      [Attached to gear], [Typically attached to aquaculture gear#footnote[ Some aquaculture gear may be sunk to the bottom during winter or extreme weather conditions like hurricanes, and so the sensor depth may change during the deployment. This change would likely be flagged by quality control processes, but it is recommended that users critically review data from these deployments.], but may be attached to another structure. Floats with the tide.],
-      [Attached to fixed structure], [Typically attached to a wharf, but may be attached to a bridge or pole. Does not float with the tide.],
-      [Floating dock], [Attached to a floating dock. Floats with the tide.],
-      [Unknown], [Configuration not indicated in historical deployment log.]
-    )
-    
-#v(11pt)
-```
-
-Interest-holder needs and characteristics of the station dictate the string design, including anchor weight, number and type of sensors, and configuration (Table `r i`). Sensor strings are generally deployed 200 m to 5000 m from shore. Some of the sensors used to measure these variables also measure sensor depth. This data has been processed and published with the Water Quality datasets, and is included in the figures below.
-
 After sensors have been retrieved, the offloaded data is sent to CMAR to be compiled and sent to the New Brunswick Open Data Portal for publication. CMAR also generates summary reports of the data (e.g., this document), and hosts links to the published datasets and reports on their [Data Access Map](https://cmar.ca/coastal-monitoring-program/).
 
 ## Quality Control
 
-An automated Gross Range test was applied to the data to identify outlying and unexpected values.  For consistency with the CMAR Water Quality data, each data point was assigned a flag of “Pass”, “Fail”, or **“Suspect/Of Interest”** [@RN25922]. 
+An automated Gross Range test was applied to the data to identify outlying and unexpected values. For consistency with the CMAR Water Quality data, each data point was assigned a flag of “Pass”, “Fail”, or “Suspect/Of Interest” [@RN25922]. 
 
 Observations flagged as "Pass" were within the measurement range listed in the sensor specifications sheet. These observations are shown in the figures below. Observations flagged as "Fail" were outside of the measurement range and are not shown in the figures.
 
@@ -338,17 +327,13 @@ for(i in seq_along(waterbodies)){
   table_i <- ss_write_report_table(dat_i, keep_waterbody = FALSE) %>% 
     ss_format_report_table() %>% 
     width(width = c(2.4, 2, 2, 2, 2, 2.4, 3.8), unit = "cm") %>%
-    set_table_properties(layout = "autofit")
+    set_table_properties(layout = "autofit") 
+
 
   i_table <- i + 1
   print(glue("\n**Table {i_table}:** {table_caption} {waterbody_i}."))
-  flextable_to_rmd(table_i)
-  # print(
-  #   kable(table_i, align = "c",
-  #         caption = glue("**Table {i_table}:** {table_caption} {waterbody_i}.")
-  #   )
-  # )
-  
+  flextable_to_rmd(table_i) 
+
   cat('\n')
   
   # plot for each station
@@ -368,12 +353,14 @@ for(i in seq_along(waterbodies)){
     # figure    
     p <- ss_plot_variables(
       dat_j,
+      standard_do_ylims = FALSE,
+      standard_sal_ylims = FALSE,
       yaxis_newline = FALSE
     )
     
     cat('\n###', station_j, '\n')
      
-    subchunkify(p, fig_height = h, fig_width = 8.5)
+    subchunkify(p, fig_height = h, fig_width = 8.5, dpi = 300)
     
     # figure caption    
     fig_caption_j <- paste0("**Figure ", k, ":** ", station_j, fig_caption)
