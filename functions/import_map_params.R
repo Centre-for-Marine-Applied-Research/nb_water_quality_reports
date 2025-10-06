@@ -4,8 +4,7 @@ import_map_params <- function(region, crs = 4326){
   
   if(region == "north"){
     dummy_points <- data.frame(
-     # longitude = c(-66.22, -63.3), latitude = c(45.51, 47.9)
-      longitude = c(-66.22, -63.3), latitude = c(45.6, 48)
+      longitude = c(-66.22, -63.3), latitude = c(45.9, 48.9)
     ) %>%
       st_as_sf(coords = c("longitude", "latitude"), crs = crs, remove = FALSE)
   }
