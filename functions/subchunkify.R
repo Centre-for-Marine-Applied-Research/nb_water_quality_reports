@@ -5,7 +5,7 @@
 # g: the plot object
 
 
-subchunkify <- function(g, fig_height = 7, fig_width = 5, fig_i = NULL) {
+subchunkify <- function(g, fig_height = 7, fig_width = 5, dpi = 72, fig_i = NULL) {
 
   if(is.null(fig_i)) {fig_i <- floor(runif(1) * 10000)}
 
@@ -13,8 +13,12 @@ subchunkify <- function(g, fig_height = 7, fig_width = 5, fig_i = NULL) {
   g_deparsed <- paste0(deparse(
     function() {g}
   ), collapse = '')
-
-  sub_chunk <- paste0("```{r sub_chunk_", fig_i, ", fig.height=", fig_height, ", fig.width=", fig_width, "}",
+  
+  sub_chunk <- paste0("```{r sub_chunk_", fig_i, 
+                      ", fig.height=", fig_height, 
+                      ", fig.width=", fig_width, 
+                      ", dpi=", dpi,
+                      "}",
                       "\n(",
                       g_deparsed
                       , ")()",
