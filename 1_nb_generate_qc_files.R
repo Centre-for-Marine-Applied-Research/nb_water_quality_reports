@@ -1,14 +1,12 @@
 library(here)
 library(quarto)
-#library(rmarkdown)
-#library(sensorstrings)
 
 path <- file.path("R:/data_branches/nb_water_quality/processed_data/deployment_data")
 
-region <- "south"
+region <- "north"
 
 depls <- list.files(
-  paste(path, region, sep = "/"),
+  paste(path, region, "new", sep = "/"),
   pattern = ".rds",
   full.names = TRUE
 )

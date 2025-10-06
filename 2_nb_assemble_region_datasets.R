@@ -1,9 +1,8 @@
 library(dplyr)
-#library(purrr)
 library(sensorstrings)
 library(qaqcmar)
 
-region <- "south"
+region <- "north"
 
 dat <- qc_assemble_county_data(prov = "nb", folder = region)
 
