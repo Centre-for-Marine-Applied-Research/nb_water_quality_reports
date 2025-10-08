@@ -115,24 +115,24 @@ region <- params$region
 #| label: import-data
 
 # read all rds files for county and rbind together
-dat_raw <- suppressMessages(
+dat <- suppressMessages(
   ss_import_data(
     input_path = "R:/data_branches/nb_water_quality/processed_data/assembled_data", 
     county = tolower(region)
   )
 )
 
-dat <- dat_raw %>%
-  qc_pivot_longer(qc_tests = c("grossrange", "depth_crosscheck")) %>%
-  filter(grossrange_flag_value != 4) %>%
-  qc_pivot_wider() %>%
-  select(
-    region, waterbody, station, lease, latitude, longitude,
-    deployment_range, string_configuration,
-    sensor_type, sensor_serial_number, sensor_depth_at_low_tide_m, timestamp_utc,
-    any_of(vars)
-    #contains("flag")
-  )
+# dat <- dat_raw %>%
+#   qc_pivot_longer(qc_tests = c("grossrange", "depth_crosscheck")) %>%
+#   filter(grossrange_flag_value != 4) %>%
+#   qc_pivot_wider() %>%
+#   select(
+#     region, waterbody, station, lease, latitude, longitude,
+#     deployment_range, string_configuration,
+#     sensor_type, sensor_serial_number, sensor_depth_at_low_tide_m, timestamp_utc,
+#     any_of(vars)
+#     #contains("flag")
+#   )
 
 # unique waterbodies
 waterbodies <- sort(unique(dat$waterbody))
@@ -325,14 +325,14 @@ for(i in seq_along(waterbodies)){
 
   # waterbody table
   table_i <- ss_write_report_table(dat_i, keep_waterbody = FALSE) %>% 
-    ss_format_report_table() %>% 
+    ss_format_report_table() %>%
     width(width = c(2.4, 2, 2, 2, 2, 2.4, 3.8), unit = "cm") %>%
     set_table_properties(layout = "autofit") 
-
-
+    
   i_table <- i + 1
   print(glue("\n**Table {i_table}:** {table_caption} {waterbody_i}."))
   flextable_to_rmd(table_i) 
+  #print(table_i)
 
   cat('\n')
   
