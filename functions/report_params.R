@@ -10,6 +10,7 @@
 vars <- c(
   "dissolved_oxygen_percent_saturation",
   "dissolved_oxygen_uncorrected_mg_per_l",
+  "ph_ph",
   "salinity_psu",
   "sensor_depth_measured_m",
   "temperature_degree_c"

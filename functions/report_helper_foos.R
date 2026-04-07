@@ -64,6 +64,7 @@ filter_tickle_island_1 <- function(dat) {
 calc_fig_height <- function(dat, h1) {
 
   n_vars <- dat %>%
+    select(-contains("flag")) %>% 
     ss_pivot_longer() %>%
     distinct(variable) %>%
     nrow()
@@ -72,7 +73,7 @@ calc_fig_height <- function(dat, h1) {
   if(n_vars == 2) h = 2 * h1
   if(n_vars == 3) h = 3 * h1
   if(n_vars == 4) h = 4 * h1
-  if(n_vars > 4) h = 5 * h1
+  if(n_vars > 4) h = 10.9
 
   h
 }

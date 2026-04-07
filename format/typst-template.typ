@@ -20,7 +20,7 @@
       grid(
         columns: (50%, 50%),
         align(left,
-          text(size: 9pt, font: font, weight: "regular", fill: black, "CMAR WATER QUALITY REPORT")
+          text(size: 9pt, font: font, weight: "regular", fill: black, "CMAR-DAAF WATER QUALITY REPORT")
           ),
         align(right,
           text(size: 9pt, font: font, weight: "regular", fill: black, counter(page).display("1"))

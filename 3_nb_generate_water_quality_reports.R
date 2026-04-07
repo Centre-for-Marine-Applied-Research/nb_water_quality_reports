@@ -14,7 +14,7 @@ library(readxl)
 
 # SECTION 1: SET UP ---------------------------------------------
 
-region <- "South"
+region <- "North"
 
 hist <- read_excel(
   "R:/tracking_sheets/nb_water_quality_report_tracker.xlsx",
