@@ -6,9 +6,9 @@ format:
       - format/typst-template.typ
     fig-format: png
 echo: false
-latex_engine: xelatex
-citeproc: true
+dpi: 600
 bibliography: format/refs.bib
+citeproc: true
 csl: format/apa.csl
 params: 
   region: region
@@ -26,8 +26,8 @@ editor_options:
 library(canadianmaps)
 library(docalcs)
 library(dplyr)
-library(flextable)
-library(officer)
+#library(flextable)
+#library(officer)
 library(ggplot2)
 library(ggthemes)
 library(ggsflabel)
@@ -52,6 +52,16 @@ source(here("functions/report_helper_foos.R"))
 source(here("functions/report_params.R"))
 
 region <- params$region
+version <- params$doc_version
+title_date <- as_date(params$doc_date[length(params$doc_date)])
+
+vars <- c(
+  "dissolved_oxygen_percent_saturation",
+  "ph_ph",
+  "salinity_psu",
+  "sensor_depth_measured_m",
+  "temperature_degree_c"
+)
 ```
 
 
@@ -89,7 +99,7 @@ region <- params$region
       [], [Danielle Dempsey], [`r format(Sys.Date(), "%B %Y")`], [V1], [P: 1-902-442-4660],
       [], [Nicole Torrie], [], [], [E: info\@cmar.ca],
       [], [Rachel Woodside], [], [], [W: www.cmar.ca],
-      [], [Kiersten Watson]
+      [], [Anne McKee]
     )
   ]
 ```
@@ -109,30 +119,31 @@ region <- params$region
 )
 
 #set par(leading: 0.75em)
+#set text(hyphenate: false)
 ```
 
 ```{r}
 #| label: import-data
 
 # read all rds files for county and rbind together
-dat <- suppressMessages(
+dat_raw <- suppressMessages(
   ss_import_data(
     input_path = "R:/data_branches/nb_water_quality/processed_data/assembled_data", 
     county = tolower(region)
   )
 )
 
-# dat <- dat_raw %>%
-#   qc_pivot_longer(qc_tests = c("grossrange", "depth_crosscheck")) %>%
-#   filter(grossrange_flag_value != 4) %>%
-#   qc_pivot_wider() %>%
-#   select(
-#     region, waterbody, station, lease, latitude, longitude,
-#     deployment_range, string_configuration,
-#     sensor_type, sensor_serial_number, sensor_depth_at_low_tide_m, timestamp_utc,
-#     any_of(vars)
-#     #contains("flag")
-#   )
+dat <- dat_raw %>%
+  qc_pivot_longer(qc_tests = c("grossrange", "depth_crosscheck")) %>%
+  filter(grossrange_flag_value != 4) %>%
+  qc_pivot_wider() %>%
+  select(
+    region, waterbody, station, lease, latitude, longitude,
+    deployment_range, string_configuration,
+    sensor_type, sensor_serial_number, sensor_depth_at_low_tide_m, timestamp_utc,
+    any_of(vars)
+    #contains("flag")
+  )
 
 # unique waterbodies
 waterbodies <- sort(unique(dat$waterbody))
@@ -255,7 +266,7 @@ ggplot() +
   ggsflabel::geom_sf_text_repel(
     data = stations_sf, aes(label = Station),
     seed = 12, force = 20,
-    size = 4.5, color = "black", bg.color = "white"
+    size = 4, color = "black", bg.color = "white"
   ) +
   coord_sf(expand = FALSE) +
   annotation_scale(location = "br") +
@@ -278,7 +289,9 @@ k = k+1
 \newpage
 ## Data Collection 
 
-DAAF collects temperature, pH, dissolved oxygen, and salinity data following [CMAR Coastal Monitoring Program](https://cmar.ca/coastal-monitoring-program/) procedures. Stationary moorings called "sensor strings" are deployed at a station for several months to a year. A typical sensor string consists of a rope attached to the seafloor by an anchor and suspended by a sub-surface buoy, with sensors attached at various depths (Figure `r  k`). Data are logged every 10 minutes to 1 hour, depending on the sensor and settings. Sensors must be retrieved to offload the data. The retrieval method depends on the sensor configuration, and may include triggering an acoustic release, directly removing sensors from surface moorings, or employing divers or grappling methods (Table `r i`). 
+DAAF collects temperature, pH, dissolved oxygen, and salinity data following [CMAR Coastal Monitoring Program](https://cmar.ca/coastal-monitoring-program/) procedures. Stationary moorings called "sensor strings" are deployed at a station for several months to a year. A typical sensor string consists of a rope attached to the seafloor by an anchor and suspended by a sub-surface buoy, with sensors attached at various depths (Figure `r  k`). Data are logged every 10 minutes to 1 hour, depending on the sensor and settings. Sensors must be retrieved to offload the data. Sensors are typically retrieved by triggering an acoustic release. 
+
+The raw sensor data is sent to CMAR for processing. CMAR generates summary reports of the data (e.g., this document) and sends the final datasets to the New Brunswick Open Data Portal for publication. CMAR also hosts links to the published reports and datasets on their [Data Access Map](https://cmar.ca/coastal-monitoring-program/).
 
 ```{=typst} 
 #figure(image("images/sensor_string.png"))
@@ -287,15 +300,13 @@ DAAF collects temperature, pH, dissolved oxygen, and salinity data following [CM
 
 \newpage
 
-After sensors have been retrieved, the offloaded data is sent to CMAR to be compiled and sent to the New Brunswick Open Data Portal for publication. CMAR also generates summary reports of the data (e.g., this document), and hosts links to the published datasets and reports on their [Data Access Map](https://cmar.ca/coastal-monitoring-program/).
-
 ## Quality Control
 
-An automated Gross Range test was applied to the data to identify outlying and unexpected values. For consistency with the CMAR Water Quality data, each data point was assigned a flag of “Pass”, “Fail”, or “Suspect/Of Interest” [@RN25922]. 
+CMAR applied an automated Gross Range test to the data to identify outlying and unexpected values. For consistency with the CMAR Water Quality data, each data point was assigned a flag of “Pass”, “Fail”, or “Suspect/Of Interest” [@RN25922]. 
 
-Observations flagged as "Pass" were within the measurement range listed in the sensor specifications sheet. These observations are shown in the figures below. Observations flagged as "Fail" were outside of the measurement range and are not shown in the figures.
+Observations flagged as "Pass" were within the measurement range listed in the sensor specifications sheet. These observations are shown in the figures below. Observations flagged as "Fail" were outside of the measurement range and are not shown in the figures. “Suspect/Of Interest” flags highlight unusual events or poor quality data and are shown in the figures. All flags were reviewed by human experts. 
 
-These automated flags were reviewed by human experts, and modified where necessary.
+Note that quality control was not applied to flag sensor drift or data spikes in this version of the report, but may be in future versions.
 
 \newpage
 # New Brunwick `r region` Water Quality Data
@@ -311,46 +322,60 @@ Water Quality data is presented by waterbody. For each waterbody, there is a tab
 #| results: asis
 
 for(i in seq_along(waterbodies)){
-
+  
   waterbody_i <- waterbodies[i]
   dat_i <- dat %>% filter(waterbody == waterbody_i)
-
+  
   stations <- sort(unique(dat_i$station))
   
   if(i > 1) cat("\n\n\\pagebreak\n")
   
   cat('\n##', waterbody_i, '\n')
-
-  cat('\n')
-
-  # waterbody table
-  table_i <- ss_write_report_table(dat_i, keep_waterbody = FALSE) %>% 
-    ss_format_report_table() %>%
-    width(width = c(2.4, 2, 2, 2, 2, 2.4, 3.8), unit = "cm") %>%
-    set_table_properties(layout = "autofit") 
-    
+  
   i_table <- i + 1
+  
   print(glue("\n**Table {i_table}:** {table_caption} {waterbody_i}."))
-  flextable_to_rmd(table_i) 
-  #print(table_i)
-
-  cat('\n')
+  
+  #waterbody table -could put this into a function
+  table_i <- ss_write_report_table(
+    dat_i, keep_waterbody = FALSE, var_sep = " \\ "
+  ) %>%
+    mutate(
+      across(.cols = c(1:7), .fns = ~as.character(.x)),
+      across(.cols = c(1:7), .fns = ~paste0("[", .x, "],"))
+    ) %>% 
+    t()
+  
+  cat(
+    "```{=typst}\n #table(columns: (2.4cm, 2cm, 2cm, 2cm, 2cm, 2.4cm, 3.9cm), 
+    align: center + horizon,
+    table.header[Station][Deployment Date][Retrieval Date][Latitude][Longitude][Configuration][Variables Measured], ",
+    table_i, 
+    ")\n```"
+  )
+  
+  cat("\n")
   
   # plot for each station
   for(j in seq_along(stations)){
-
+    
     k = k + 1
     station_j <- stations[j] # station of interest
-
+    
+    if(j > 1) cat("\n\n\\pagebreak\n")
+    
     # subset data to station of interest
-    dat_j <- dat_i %>% 
+    dat_j <- dat_i %>%
       filter(station == station_j) %>%
-      ss_convert_depth_to_ordered_factor()
+      ss_convert_depth_to_ordered_factor() %>% 
+      select_if(~ !all(is.na(.))) # drop cols that are all NA so there won't be a plot panel
+
+    dat_j <- dat_j %>% select(-contains("flag"))
     
     # height of figure j
     h <- calc_fig_height(dat_j, h1 = 2.4)
-
-    # figure    
+   
+    # figure
     p <- ss_plot_variables(
       dat_j,
       standard_do_ylims = FALSE,
@@ -359,18 +384,17 @@ for(i in seq_along(waterbodies)){
     )
     
     cat('\n###', station_j, '\n')
-     
+    
     subchunkify(p, fig_height = h, fig_width = 8.5, dpi = 300)
     
-    # figure caption    
+    # figure caption
     fig_caption_j <- paste0("**Figure ", k, ":** ", station_j, fig_caption)
-    
+  
     cat('\n', fig_caption_j, '\n')
     
     cat('\n')
   }
 }
-
 ```
 
 \newpage
@@ -380,18 +404,29 @@ CMAR and DAAF aim to prioritize data collection and processing efforts that best
 
 # Document History
 
-```{=typst}
-#set align(center)
-```
-
 **Table `r i_table +1`**: Document history.
 ```{r}
-data.frame(
+#| results: asis
+
+hist <- data.frame(
   Version = params$doc_version,
   Date = params$doc_date,
   Amendments = params$doc_notes
 ) %>% 
-  kable(align = "ccl")
+  mutate(
+    Date = format(Date),
+    across(.cols = c(1:3), .fns = ~as.character(.x)),
+    across(.cols = c(1:3), .fns = ~paste0("[", .x, "],"))
+  ) %>% 
+  t()
+
+cat(
+  "```{=typst}\n #table(columns: (2.4cm, 2.4cm, 12cm), 
+    align: (center + horizon, center + horizon, left + horizon),
+    table.header[Version][Date][Amendments], ", hist, ")\n```"
+)
+
+cat("\n")
 ```
 <br>
 
