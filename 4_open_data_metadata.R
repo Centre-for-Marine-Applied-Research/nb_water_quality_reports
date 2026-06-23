@@ -1,3 +1,4 @@
+# May 6, 2026
 # Arpil 1, 2026
 
 # This script looks at all of the data submitted to Open Data Portal and:
@@ -57,3 +58,4 @@ write_csv(
   n_obs,
   file = paste0(path_submission, "/", date_today, "_number_rows.csv")
 )
+

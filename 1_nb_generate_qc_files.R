@@ -3,7 +3,7 @@ library(quarto)
 
 path <- file.path("R:/data_branches/nb_water_quality/processed_data/deployment_data")
 
-region <- "south"
+region <- "north"
 
 depls <- list.files(
   paste(path, region, sep = "/"),
@@ -11,7 +11,7 @@ depls <- list.files(
   pattern = ".rds",
   full.names = TRUE
 )
-depls <- depls[1]
+depls <- depls[4]
 
 # export html file for each county showing the flagged observations
 sapply(depls, function(x) {

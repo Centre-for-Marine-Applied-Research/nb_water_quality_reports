@@ -52,7 +52,7 @@ dt_options2 <- list(
 region_param <- params$region_param
 depl_file <- params$depl_file
 
-grossrange_table_path <- "C:/Users/Danielle Dempsey/Desktop/RProjects/nb_cmp/nb_water_quality_reports/nb_thresholds.xlsx"
+grossrange_table_path <- here("nb_thresholds.xlsx")
 
 path_out <- file.path("R:/data_branches/nb_water_quality/processed_data")
 
@@ -70,10 +70,17 @@ dat_raw <- readRDS(depl_file)
 station <- unique(dat_raw$station)
 depl_range <- unique(dat_raw$deployment_range)
 
+human_in_loop <- read_excel(
+  "R:/tracking_sheets/nb_water_quality_human_in_loop_tracking.xlsx",
+  sheet = "hil_table",
+  na = c("NA", "")
+) %>% 
+  filter(station == !!station, depl_range == !!depl_range)
+
 vars <- dat_raw %>% 
   ss_pivot_longer() %>% 
-  distinct(variable)
-vars <- sort(vars$variable)
+  distinct(variable) %>% 
+  pull(variable)
 
 # if sensor depth was not measured, do not run qc_test_depth_crosscheck
 if("sensor_depth_measured_m" %in% vars) {
@@ -103,9 +110,20 @@ dat <- dat_raw %>%
   qc_test_all(
     qc_tests = qc_tests,
     grossrange_table = grossrange_table
-  ) 
+  ) %>%
+  qc_test_human_in_loop(human_in_loop_table = human_in_loop, qc_tests = qc_tests)
+
+if(any(str_detect(colnames(dat), "human_in_loop"))) {
+  qc_tests <- c(qc_tests, "human_in_loop")
+}
+
+# assign max flag
+dat <- dat %>% 
+  qc_assign_max_flag(qc_tests = qc_tests)
 
 if (nrow(dat) != nrow(dat_raw)) knitr::knit_exit()
+
+qc_tests <- c(qc_tests, "qc")
 
 # use to make qc_summary and figures
 dat_long <- dat %>%

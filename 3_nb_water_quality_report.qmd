@@ -26,8 +26,6 @@ editor_options:
 library(canadianmaps)
 library(docalcs)
 library(dplyr)
-#library(flextable)
-#library(officer)
 library(ggplot2)
 library(ggthemes)
 library(ggsflabel)
@@ -52,7 +50,7 @@ source(here("functions/report_helper_foos.R"))
 source(here("functions/report_params.R"))
 
 region <- params$region
-version <- params$doc_version
+version <- params$doc_version[length(params$doc_version)]
 title_date <- as_date(params$doc_date[length(params$doc_date)])
 
 vars <- c(
@@ -96,7 +94,7 @@ vars <- c(
   
     #table(columns: (55pt, 4.3cm, 4.3cm, 4.3cm, 7cm), align: left,
       table.header[ ][Prepared By][Date][Version][Contact],
-      [], [Danielle Dempsey], [`r format(Sys.Date(), "%B %Y")`], [V1], [P: 1-902-442-4660],
+      [], [Danielle Dempsey], [`r format(Sys.Date(), "%B %Y")`], [`r version`], [P: 1-902-442-4660],
       [], [Nicole Torrie], [], [], [E: info\@cmar.ca],
       [], [Rachel Woodside], [], [], [W: www.cmar.ca],
       [], [Anne McKee]
@@ -134,15 +132,14 @@ dat_raw <- suppressMessages(
 )
 
 dat <- dat_raw %>%
-  qc_pivot_longer(qc_tests = c("grossrange", "depth_crosscheck")) %>%
-  filter(grossrange_flag_value != 4) %>%
+  qc_pivot_longer(qc_tests =  "qc") %>%
+  filter(qc_flag_value != 4) %>%
   qc_pivot_wider() %>%
   select(
-    region, waterbody, station, lease, latitude, longitude,
+    waterbody, station, any_of("lease"), latitude, longitude,
     deployment_range, string_configuration,
     sensor_type, sensor_serial_number, sensor_depth_at_low_tide_m, timestamp_utc,
     any_of(vars)
-    #contains("flag")
   )
 
 # unique waterbodies
@@ -244,12 +241,15 @@ stations_sf <- dat %>%
     crs = crs, agr = "constant"
   )
 
+text_size <- 4
+
 if (tolower(region) == "north") {
   # used nb here so the NS border will be drawn
   region_sf <- nb %>% 
     st_crop(dummy_coords) 
   
-  point_size <- 3
+  point_size <- 2
+  text_size <- 3.5
 }
 if (tolower(region) == "south") {
   region_sf <- can_us %>% 
@@ -266,7 +266,7 @@ ggplot() +
   ggsflabel::geom_sf_text_repel(
     data = stations_sf, aes(label = Station),
     seed = 12, force = 20,
-    size = 4, color = "black", bg.color = "white"
+    size = text_size, color = "black", bg.color = "white"
   ) +
   coord_sf(expand = FALSE) +
   annotation_scale(location = "br") +
@@ -302,11 +302,17 @@ The raw sensor data is sent to CMAR for processing. CMAR generates summary repor
 
 ## Quality Control
 
-CMAR applied an automated Gross Range test to the data to identify outlying and unexpected values. For consistency with the CMAR Water Quality data, each data point was assigned a flag of “Pass”, “Fail”, or “Suspect/Of Interest” [@RN25922]. 
+Quality Control was applied to the data to identify outlying and unexpected observations. Inspired by Quality Assurance/Quality Control of Real-Time Oceanographic Data (QARTOD) guidance, each data point was assigned a flag of “Pass”, “Fail”, or “Suspect/Of Interest” [@RN25922]. Observations that passed all tests and were included in the figures below. Observations that failed any test were considered poor quality data and excluded from the figures. "Suspect/Of Interest" flags highlight unusual data signals, which may indicate noteworthy events or poor quality data. This data is included in the figures.
 
-Observations flagged as "Pass" were within the measurement range listed in the sensor specifications sheet. These observations are shown in the figures below. Observations flagged as "Fail" were outside of the measurement range and are not shown in the figures. “Suspect/Of Interest” flags highlight unusual events or poor quality data and are shown in the figures. All flags were reviewed by human experts. 
+Two Quality Control tests were applied: an automated "Gross Range" test and a "Human in the Loop" test. The Gross Range test automatically flagged observations that are outside the measurement range of the sensor as "Fail". For the Human in the Loop test, human experts reviewed the data and flagged signals of biofouling and poor quality as "Fail". 
 
-Note that quality control was not applied to flag sensor drift or data spikes in this version of the report, but may be in future versions.
+Removing flagged observations can result in patchy time series. Data gaps can also be caused by battery failure, delays between retrieval and re-deployment, and accidental or intentional interference with equipment. The full `r region` Region Water Quality Data, including Quality Control flags, can be downloaded from the New Brunswick Open Data Portal.
+
+Automated Quality Control tests to assess biofouling, spikes, and other issues will be applied to future data releases. Before these tests can be applied, more data must be collected and analysed to determine "normal" and outlying conditions for the areas of interest.
+
+VR2AR sensors measure temperature, pressure (sensor depth), and acoustic detections. They also have an acoustic release, and so they are attached at the bottom of the string and to the anchor to facilitate retrieval (Figure `r  k`). Through calibration-validation procedures, CMAR has discovered that the VR2AR temperature sensors typically record 0.5 – 1 °C lower than other temperature sensors. This is not corrected for or flagged in the datasets but may be in the future.
+
+Some sensors may drift over time. The existing Quality Control tests do not explicitly detect sensor drift. Users should review and assess all data prior to use.
 
 \newpage
 # New Brunwick `r region` Water Quality Data
@@ -316,7 +322,7 @@ Water Quality data is presented by waterbody. For each waterbody, there is a tab
 ```{r}
 #| label: report-body
 #| message: false
-#| warning: false
+#| warning: true
 #| error: false
 #| fig.width: 8.5
 #| results: asis
@@ -369,7 +375,20 @@ for(i in seq_along(waterbodies)){
       filter(station == station_j) %>%
       ss_convert_depth_to_ordered_factor() %>% 
       select_if(~ !all(is.na(.))) # drop cols that are all NA so there won't be a plot panel
-
+    
+    # y-limts for sal
+    if(region == "North"){
+      ylims_ph <- c(7.4, 8.5)
+      ylims_sal <- c(20, 34)  
+    } else if (region == "South") {
+      ylims_ph <- c(7.75, 8.5)
+      ylims_sal <- c(20, 34)
+    }
+     
+    if(station_j == "Burnt Church Point") {
+      ylims_sal <- c(16, 34)
+    }
+    
     dat_j <- dat_j %>% select(-contains("flag"))
     
     # height of figure j
@@ -378,8 +397,9 @@ for(i in seq_along(waterbodies)){
     # figure
     p <- ss_plot_variables(
       dat_j,
-      standard_do_ylims = FALSE,
-      standard_sal_ylims = FALSE,
+      standard_do_ylims = TRUE,
+      standard_ph_ylims = ylims_ph,
+      standard_sal_ylims = ylims_sal,
       yaxis_newline = FALSE
     )
     
