@@ -1,0 +1,16 @@
+variable,sensor_type,sensor_min,sensor_max,user_min,user_max,sensor_rationale,user_rationale
+dissolved_oxygen_percent_saturation,aquameasure,0,500,0,500,manual,
+dissolved_oxygen_uncorrected_mg_per_l,hobo do,0,30,0,30,manual,user_min: salmon
+ph_ph,hobo ph,2,12,2,12,manual,
+salinity_psu,aquameasure,0,75,0,75,manual,
+sensor_depth_measured_m,,,,0,50,,
+sensor_depth_measured_m,aquameasure,0,50,,,,
+sensor_depth_measured_m,vr2ar,0,500,,,,
+sensor_depth_measured_m,vr2ar-69,0,500,,,,
+temperature_degree_c,,,,0,25,,
+temperature_degree_c,aquameasure,-5,35,,,,
+temperature_degree_c,hobo,-40,70,,,,
+temperature_degree_c,hobo do,-5,40,,,,
+temperature_degree_c,hobo ph,-2,50,,,,
+temperature_degree_c,vr2ar,-5,40,,,,
+temperature_degree_c,vr2ar-69,-5,40,,,,
