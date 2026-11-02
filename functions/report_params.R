@@ -18,7 +18,7 @@ vars <- c(
 
 # region map parameters ---------------------------------------------------
 # xmin to ymax: extent of the region map (and the red box on the
-# New Brunswick map). region is lower case.
+# New Brunswick map).
 
 region_params <- tibble::tribble(
   ~region, ~xmin,  ~xmax, ~ymin, ~ymax, ~point_size, ~text_size,

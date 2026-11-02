@@ -46,14 +46,6 @@ region <- params$region
 version <- params$doc_version[length(params$doc_version)]
 title_date <- as_date(params$doc_date[length(params$doc_date)])
 
-vars <- c(
-  "dissolved_oxygen_percent_saturation",
-  "ph_ph",
-  "salinity_psu",
-  "sensor_depth_measured_m",
-  "temperature_degree_c"
-)
-
 region_map <- filter(region_params, region == !!region)
 region_extent <- get_region_extent(region_map)
 ```
@@ -279,7 +271,7 @@ The raw sensor data is sent to CMAR for processing. CMAR generates summary repor
 
 ## Quality Control
 
-Quality Control was applied to the data to identify outlying and unexpected observations. Inspired by Quality Assurance/Quality Control of Real-Time Oceanographic Data (QARTOD) guidance, each data point was assigned a flag of “Pass”, “Fail”, or “Suspect/Of Interest” [@RN25922]. Observations that passed all tests and were included in the figures below. Observations that failed any test were considered poor quality data and excluded from the figures. "Suspect/Of Interest" flags highlight unusual data signals, which may indicate noteworthy events or poor quality data. This data is included in the figures.
+Quality Control was applied to the data to identify outlying and unexpected observations. Inspired by Quality Assurance/Quality Control of Real-Time Oceanographic Data (QARTOD) guidance, each data point was assigned a flag of “Pass”, “Fail”, or “Suspect/Of Interest” [@RN25922]. Observations that passed all tests were included in the figures below. Observations that failed any test were considered poor quality data and excluded from the figures. "Suspect/Of Interest" flags highlight unusual data signals, which may indicate noteworthy events or poor quality data. This data is included in the figures.
 
 Two Quality Control tests were applied: an automated "Gross Range" test and a "Human in the Loop" test. The Gross Range test automatically flagged observations that are outside the measurement range of the sensor as "Fail". For the Human in the Loop test, human experts reviewed the data and flagged signals of biofouling and poor quality as "Fail". 
 
@@ -315,8 +307,6 @@ for(w in seq_along(waterbodies)){
   
   cat('\n##', waterbody_w, '\n')
   
-  #i_table <- w
-  
   print(glue("\n**Table {w}:** {table_caption} {waterbody_w}."))
   
   # waterbody table 
@@ -349,22 +339,17 @@ for(w in seq_along(waterbodies)){
       filter(station == station_j) |>
       select(where(~ !all(is.na(.x)))) # drop cols that are all NA so there won't be a plot panel
     
-    # CHANGED: y-limits from report_params.R. The region limits replace the
-    # standard pH and salinity limits; a station entry replaces the region
-    # limits for that variable. DO keeps the standard limits.
+    # The region limits replace the standard pH and salinity limits; a station
+    # entry replaces the region limits for that variable. DO keeps the standard
+    # limits.
     ylims_j <- region_ylims[[region]]
     if (station_j %in% names(station_ylims)) {
       ylims_j <- modifyList(ylims_j, station_ylims[[station_j]])
     }
 
     # height of figure j
-    # CHANGED: calc_fig_height() counts the variable columns (no pivot)
     h <- calc_fig_height(dat_j, h1 = 2.4, var_cols = vars)
 
-    # figure
-    # CHANGED: standard_do_ylims, standard_ph_ylims and standard_sal_ylims are
-    # replaced by ylims (sensorstrings 2.0.4). standard_ylims = TRUE (the
-    # default) keeps the standard DO limits
     p <- ss_plot_variables(
       dat_j,
       ylims = ylims_j,
