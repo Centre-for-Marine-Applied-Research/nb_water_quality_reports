@@ -1,3 +1,4 @@
+# November 2, 2026
 # March 25, 2024
 
 # Parameters to source for Water Quality reports
@@ -9,39 +10,33 @@
 
 vars <- c(
   "dissolved_oxygen_percent_saturation",
-  "dissolved_oxygen_uncorrected_mg_per_l",
   "ph_ph",
   "salinity_psu",
   "sensor_depth_measured_m",
   "temperature_degree_c"
 )
 
+# region map parameters ---------------------------------------------------
+# xmin to ymax: extent of the region map (and the red box on the
+# New Brunswick map). region is lower case.
 
-# station coordinates -----------------------------------------------------
+region_params <- tibble::tribble(
+  ~region, ~xmin,  ~xmax, ~ymin, ~ymax, ~point_size, ~text_size,
+  "North", -66.22, -63.3, 45.9,  48.9,  2,           3.5,
+  "South", -67.4,  -66.5, 44.9,  45.3,  3,           4
+)
 
-# coords_ddm <- c("deployment_latitude_n_ddm", "deployment_longitude_w_ddm",
-#                 "retrieval_latitude_n_ddm", "retrieval_longitude_w_ddm")
-# 
-# gs4_deauth()
-# link <- "https://docs.google.com/spreadsheets/d/1KDM8a-PkP30NNJNQMbK3SPt0tAAr3R2MeqHgIBYSVg8/edit?gid=149994636#gid=149994636"
-# 
-# stations <- read_sheet(link, sheet = "tracker") %>%
-#   filter(station != "00_Example") %>%
-#   distinct(waterbody, station, .keep_all = TRUE) %>%
-#   mutate(across(any_of(coords_ddm),
-#                 ~ss_coords_from_ddm_to_dd(.x),
-#                 .names = "{str_remove(.col, '_w_ddm|_n_ddm')}"
-#   )) %>%
-#   mutate(
-#     deployment_latitude = if_else(
-#       is.na(deployment_latitude), deployment_latitude_dd, deployment_latitude),
-#     deployment_longitude = -deployment_longitude,
-#     deployment_longitude = if_else(
-#       is.na(deployment_longitude), deployment_longitude_dd, deployment_longitude)
-#   ) %>%
-#   select(waterbody, station, deployment_latitude, deployment_longitude) %>% 
-#   st_as_sf( 
-#     coords = c("deployment_longitude", "deployment_latitude"), 
-#     remove = FALSE,
-#     crs = 4326, agr = "constant"
-#   )
+# y-limits ----------------------------------------------------------------
+# moved from the report loop. Named lists passed to the ylims
+# argument of ss_plot_variables(); replace the sensorstrings standard
+# limits for the named variables only.
+
+region_ylims <- list(
+  North = list(ph_ph = c(7.4, 8.5), salinity_psu = c(20, 34)),
+  South = list(ph_ph = c(7.75, 8.5), salinity_psu = c(20, 34))
+)
+
+# stations where the region limits are replaced
+station_ylims <- list(
+  "Burnt Church Point" = list(salinity_psu = c(16, 34))
+)
