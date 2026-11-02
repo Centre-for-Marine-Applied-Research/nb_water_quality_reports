@@ -75,6 +75,7 @@ depl_range <- unique(dat_raw$deployment_range)
 vars <- dat_raw |> 
   ss_pivot_longer() |> 
   distinct(variable) |> 
+  arrange(variable) |> 
   pull(variable)
 
 # if sensor depth was not measured, do not run qc_test_depth_crosscheck
@@ -102,7 +103,7 @@ grossrange_table <- read_csv(
 human_in_loop <- read_excel(
   hil_table_path, sheet = "hil_table", na = c("NA", "")
 ) |> 
-  filter(station == !!station, depl_range == !!depl_range)
+  filter(station == !!station, deployment_range == !!depl_range)
 
 
 # assign flags - qc tests
@@ -223,7 +224,14 @@ if("sensor_depth_measured_m" %in% vars) {
 
   p <- qc_plot_flags(dat_long, qc_tests = "depth_crosscheck", ncol = 1)
 
-  subchunkify(p$depth_crosscheck, label = "depth_crosscheck", fig_height = h, fig_width = 8.5)
+  subchunkify(
+    p$depth_crosscheck, 
+    label = "depth_crosscheck", 
+    fig_height = h, 
+    fig_width = 8.5,
+    dpi = 150, 
+    out_width = "100%"
+  )
 
   qc_tests <- qc_tests[-which(qc_tests == "depth_crosscheck")]
 
@@ -262,7 +270,11 @@ for(i in seq_along(vars)){
       subchunkify(
         p[[1]][[1]], 
         label = paste0(var_i, test_j),
-        fig_height = h, fig_width = 8.5, dpi = 150, out_width = "100%")
+        fig_height = h, 
+        fig_width = 8.5, 
+        dpi = 150, 
+        out_width = "100%"
+      )
     }
   }
 }
